@@ -1,0 +1,94 @@
+def scene(image, text, *choices):
+    return {
+        "image": image,
+        "text": text,
+        "choices": list(choices),
+    }
+
+SCENES = {
+    "plan": scene(
+        "plan.png",
+        "Ticho.\n\n"
+        "Sníh se táhne do všech stran.\n"
+        "Ve sněhu jsou cizí stopy.",
+        ("Rozhlédni se", "plan_rozhled"),
+        ("Jdi ke skalám", "jeskyne"),
+        ("Vydej se k lesu", "les"),
+    ),
+
+    "plan_rozhled": scene(
+        "plan.png",
+        "Obzor je prázdný.\n\n"
+        "Na severu skály. Na jihu les.",
+        ("Očichej stopy", "stopy"),
+        ("Zpět", "plan"),
+    ),
+
+    "stopy": scene(
+        "plan.png",
+        "Pach není starý.\n\n"
+        "Někdo tu byl nedávno.",
+        ("Jdi za stopou", "les"),
+        ("Zpět", "plan"),
+    ),
+
+    "jeskyne": scene(
+        "jeskyne.png",
+        "Vchod do jeskyně je temný.",
+        ("Vstup", "jeskyne_inside"),
+        ("Zpět", "plan"),
+    ),
+
+    "jeskyne_inside": scene(
+        "jeskyne_inside.png",
+        "Uvnitř je ticho.\n\n"
+        "Kapky dopadají do tmy.",
+        ("Jdi hlouběji", "latka"),
+        ("Zpět", "jeskyne"),
+    ),
+
+    "latka": scene(
+        "jeskyne_inside.png",
+        "Na zemi leží kus látky.\n\n"
+        "Člověk.",
+        ("Vydej se ven", "les"),
+    ),
+
+    "les": scene(
+        "les.png",
+        "Stromy tlumí vítr.\n\n"
+        "Stopa pokračuje mezi nimi.",
+        ("Jdi hlouběji", "les_deep"),
+        ("Zpět", "plan"),
+    ),
+
+    "les_deep": scene(
+        "les_deep.png",
+        "Stíny houstnou.\n\n"
+        "Je cítit dým.",
+        ("Jdi za dýmem", "campfire"),
+        ("Zpět", "les"),
+    ),
+
+    "campfire": scene(
+        "campfire.png",
+        "Zbytky ohniště.\n\n"
+        "Ještě teplé.",
+        ("Rozhlédni se", "meeting"),
+    ),
+
+    "meeting": scene(
+        "meeting.png",
+        "Mezi stromy stojí postava.\n\n"
+        "Nehýbe se.",
+        ("Zůstaň stát", "ending"),
+        ("Ustup", "les"),
+    ),
+
+    "ending": scene(
+        "meeting_close.png",
+        "Postava se přiblíží.\n\n"
+        "Ticho zůstává.",
+        ("Konec", "ending"),
+    ),
+}

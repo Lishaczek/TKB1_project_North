@@ -6,7 +6,7 @@ Vytvořeno pod hlavičkou **FrostBound Studio**.
 North je vizuální novela (Interactive Fiction) postavená na vlastním enginu v jazyce Python. Hráč sleduje cestu polární lišky, která v mrazivé pustině hledá bezpečí a navazuje křehké pouto s tajemnou postavou u ohně.
 
 ### Klíčové vlastnosti
-- **Atmosférický vizuál**: Vlastní artové podklady v poměru 16:9.
+- **Atmosférický vizuál**: Vlastní AI art podklady v poměru 16:9.
 - **Interaktivní systém**: Rozhodnutí hráče ovlivňují vývoj scén a budování důvěry.
 - **Minimalistické rozhraní**: HUD, který lze kdykoliv skrýt pro nerušený zážitek.
 

@@ -1,0 +1,18 @@
+# --- PYTHON ESSENTIALS ---
+__pycache__/               # Tohle je nejdůležitější (vytváří ty otravné složky)
+*.py[cod]                  # Kompilovaný kód
+*$py.class                 # Alternativní kompilace
+
+# --- ENVIRONMENTS ---
+.venv/                     # Pokud si vytvoříš virtuální prostředí
+venv/
+env/
+
+# --- IDEs & EDITORS ---
+.vscode/                   # Pokud to někdy otevřeš ve VS Code
+.idea/                     # Pokud zkusíš PyCharm
+.directory                 # Specifické pro tvůj Debian (KDE)
+Thumbs.db                  # Specifické pro Windows ve škole (miniatury obrázků)
+
+# --- PROJECT SPECIFIC ---
+*.log                      # Kdyby sis dělal logování chyb

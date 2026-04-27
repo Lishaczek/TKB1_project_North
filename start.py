@@ -3,161 +3,154 @@ import sys
 import tkinter as tk
 from PIL import Image, ImageTk
 
-# 1. KYBERBEZPEČNOST: Zákaz tvorby .pyc souborů
+# Zákaz .pyc souborů
 sys.dont_write_bytecode = True
-
-# --- KONSTANTY ---
-WINDOW_W, WINDOW_H = 1280, 720
-TEXTBOX_HEIGHT = 190
-RIGHT_PANEL_WIDTH = 280
 IMAGE_FOLDER = "images"
 
 VYCHOZI_STAV = {
-    "kapitola": 1,
-    "pokusy_priblizeni": 0,
-    "nikol_duvera": 0
+    "navstiveno": {}, 
+    "pouzite_volby": set(), 
+    "promenne": {"pokusy": 0, "rozhlizeni": 0} 
 }
-
 
 class NorthGame:
     def __init__(self, root, scenes_data):
         self.root = root
         self.scenes = scenes_data
-
-        # OPRAVA CEST: Najdeme absolutní cestu k obrázkům
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.img_dir = os.path.join(self.script_dir, IMAGE_FOLDER)
 
         self.state = VYCHOZI_STAV.copy()
+        self.state["pouzite_volby"] = set()
+        
         self.current_pil_image = None
         self.current_tk_image = None
-        self.hud_visible = False
         self.v_menu = True
+        self.hud_visible = False
+        self.full_text = ""
+        self.typing_job = None
+        self.is_typing = False
 
         self.setup_ui()
         self.bind_events()
-
-        # Pojistka pro Linux: Vynutíme vykreslení okna před načtením menu
-        self.root.update()
         self.show_main_menu()
 
     def setup_ui(self):
-        self.canvas = tk.Canvas(
-            self.root, bg="black", highlightthickness=0, bd=0
-        )
+        self.canvas = tk.Canvas(self.root, bg="black", highlightthickness=0, bd=0)
         self.canvas.pack(fill="both", expand=True)
 
-        self.textbox_frame = tk.Frame(
-            self.root, bg="#111111", height=TEXTBOX_HEIGHT
-        )
-        self.left_frame = tk.Frame(self.textbox_frame, bg="#111111")
-        self.left_frame.pack(
-            side="left", fill="both", expand=True, padx=20, pady=15
-        )
-
         self.story_label = tk.Label(
-            self.left_frame, text="", bg="#111111", fg="#f2f2f2",
-            justify="left", anchor="nw", font=("Arial", 14)
+            self.root, text="", fg="white", bg="#0a0a0a",
+            justify="left", anchor="nw", font=("Verdana", 14), cursor="hand2"
         )
-        self.story_label.pack(fill="both", expand=True)
-
-        self.right_frame = tk.Frame(
-            self.textbox_frame, bg="#111111", width=RIGHT_PANEL_WIDTH
-        )
-        self.right_frame.pack(side="right", fill="y", padx=15, pady=15)
-        self.right_frame.pack_propagate(False)
-
-        self.menu_frame = tk.Frame(self.root, bg="#111111", padx=30, pady=30)
+        self.story_label.bind("<Button-1>", lambda e: self.skip_typing())
+        self.btn_cnt = tk.Frame(self.root, bg="#0a0a0a")
+        self.menu_frame = tk.Frame(self.root, bg="#111111", padx=40, pady=40)
 
     def bind_events(self):
         self.root.bind("<Configure>", lambda e: self.redraw())
-        # Agresivní bind pro zachycení kláves kdekoli v aplikaci
         self.root.bind_all("<Key>", self.handle_keypress)
-        self.root.focus_force()
 
-    def handle_keypress(self, event):
-        """Univerzální handler pro klávesy."""
-        key = event.keysym.lower()
-        if key == "h":
-            self.toggle_hud()
-        elif key == "escape":
-            self.root.destroy()
+    def animate_text(self, text, index):
+        if index <= len(text):
+            self.story_label.config(text=text[:index])
+            # RYCHLOST: 10 ms
+            self.typing_job = self.root.after(10, lambda: self.animate_text(text, index + 1))
+        else:
+            self.finish_typing()
 
-    def show_main_menu(self):
-        self.v_menu = True
-        self.hud_visible = False
-        self.textbox_frame.place_forget()
-        self.load_scene_image("title_screen.png")
+    def skip_typing(self):
+        if self.is_typing:
+            if self.typing_job: self.root.after_cancel(self.typing_job)
+            self.finish_typing()
 
-        for w in self.menu_frame.winfo_children():
-            w.destroy()
-
-        tk.Label(
-            self.menu_frame, text="N O R T H", fg="white", bg="#111111",
-            font=("Arial", 40, "bold")
-        ).pack(pady=(0, 40))
-
-        btn_opt = {"bg": "#1b1b1b", "fg": "white", "relief": "flat",
-                   "font": ("Arial", 12), "pady": 10, "cursor": "hand2"}
-
-        tk.Button(self.menu_frame, text="Nová hra",
-                  command=self.start_game, **btn_opt).pack(fill="x", pady=5)
-        tk.Button(self.menu_frame, text="Ukončit",
-                  command=self.root.destroy, **btn_opt).pack(fill="x", pady=5)
-
-        self.menu_frame.lift()
+    def finish_typing(self):
+        self.is_typing = False
+        self.story_label.config(text=self.full_text)
         self.redraw()
 
-    def start_game(self):
-        self.v_menu = False
-        self.hud_visible = True
-        self.menu_frame.place_forget()
-        self.state = VYCHOZI_STAV.copy()
-        self.show_scene("plan")
-
-    def show_scene(self, scene_id):
-        if scene_id == "main_menu":
-            self.show_main_menu()
-            return
-
-        if scene_id == "nikol_ustup":
-            self.state["pokusy_priblizeni"] += 1
-
+    def show_scene(self, scene_id, reaction="", custom_text=None):
         scene_data = self.scenes.get(scene_id)
-        if not scene_data:
-            return
+        if not scene_data: return
 
         self.load_scene_image(scene_data["image"])
-        self.story_label.config(text=scene_data["text"])
+        
+        # Zpracování textu
+        main_txt = custom_text(self.state) if callable(custom_text) else (custom_text or scene_data["text"])
+        react_txt = reaction(self.state) if callable(reaction) else reaction
 
-        for w in self.right_frame.winfo_children():
-            w.destroy()
+        if react_txt:
+            self.full_text = f"{react_txt.upper()}\n\n{main_txt}"
+        else:
+            self.full_text = main_txt
 
-        # KONTEJNER PRO VYCENTROVÁNÍ TLAČÍTEK
-        btn_cnt = tk.Frame(self.right_frame, bg="#111111")
-        btn_cnt.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.9)
+        for w in self.btn_cnt.winfo_children(): w.destroy()
+        self.btn_cnt.place_forget()
+        self.is_typing = True
+        self.animate_text(self.full_text, 0)
 
-        btn_opt = {"bg": "#1b1b1b", "fg": "white", "relief": "flat",
-                   "font": ("Arial", 11), "pady": 8, "cursor": "hand2"}
+        btn_opt = {
+            "bg": "#1a1a1a", "fg": "#cccccc", "relief": "flat", 
+            "font": ("Verdana", 11), "pady": 12, "cursor": "hand2",
+            "activebackground": "#333333", "activeforeground": "white"
+        }
 
         for ch in scene_data["choices"]:
-            tk.Button(
-                btn_cnt, text=ch["label"],
-                command=lambda t=ch["target"]: self.show_scene(t),
-                **btn_opt
-            ).pack(fill="x", pady=4)
+            if ch["once"] and ch["cid"] in self.state["pouzite_volby"]: continue
+            if ch.get("condition") and not ch["condition"](self.state): continue
 
-        u_nikol = (scene_id == "nikol_setkani")
-        dost_pokusu = (self.state["pokusy_priblizeni"] >= 2)
-        if u_nikol and dost_pokusu:
             tk.Button(
-                btn_cnt, text="Zkusit hrabat ve sněhu",
-                command=lambda: self.show_scene("nikol_hrabani"),
+                self.btn_cnt, text=ch["label"],
+                command=lambda c=ch: self.handle_choice(c),
                 **btn_opt
-            ).pack(fill="x", pady=4)
+            ).pack(fill="x", pady=5)
 
         self.redraw()
-        self.root.focus_set()
+
+    def handle_choice(self, choice_data):
+        if choice_data["once"]: self.state["pouzite_volby"].add(choice_data["cid"])
+        if choice_data["action"]: choice_data["action"](self.state)
+        self.show_scene(choice_data["target"], 
+                        reaction=choice_data["reaction"], 
+                        custom_text=choice_data.get("custom_text"))
+
+    def redraw(self):
+        """Responzivní výpočty s dynamickým paddingem."""
+        self.root.update_idletasks()
+        w, h = self.root.winfo_width(), self.root.winfo_height()
+        if w <= 1 or h <= 1: return
+
+        if self.current_pil_image:
+            img_w, img_h = self.current_pil_image.size
+            ratio = max(w / img_w, h / img_h)
+            nw, nh = int(img_w * ratio), int(img_h * ratio)
+            bg = self.current_pil_image.resize((nw, nh), Image.LANCZOS)
+            x, y = (nw - w) // 2, (nh - h) // 2
+            self.current_tk_image = ImageTk.PhotoImage(bg.crop((x, y, x + w, y + h)))
+            self.canvas.delete("all")
+            self.canvas.create_image(0, 0, anchor="nw", image=self.current_tk_image)
+
+        if not self.v_menu and self.hud_visible:
+            hud_h = int(h * 0.3)
+            right_w = int(w * 0.3)
+            
+            # DYNAMICKÝ PADDING: 4 % šířky/výšky okna
+            px = int(w * 0.04)
+            py = int(h * 0.04)
+            
+            self.canvas.create_rectangle(0, h - hud_h, w, h, fill="#0a0a0a", outline="")
+            
+            # Label se umístí s dynamickým paddingem
+            self.story_label.place(x=px, y=h - hud_h + py, width=w - right_w - (2 * px), height=hud_h - (2 * py))
+            self.story_label.config(wraplength=w - right_w - (2 * px))
+            
+            if not self.is_typing:
+                self.btn_cnt.place(x=w - right_w - px, y=h - hud_h + py, width=right_w, height=hud_h - (2 * py))
+        elif self.v_menu:
+            self.menu_frame.place(relx=0.5, rely=0.5, anchor="center")
+        else:
+            self.story_label.place_forget()
+            self.btn_cnt.place_forget()
 
     def load_scene_image(self, filename):
         path = os.path.join(self.img_dir, filename)
@@ -165,56 +158,28 @@ class NorthGame:
             self.current_pil_image = Image.open(path).convert("RGB")
             self.redraw()
 
-    def fit_image_cover(self, image, target_w, target_h):
-        img_w, img_h = image.size
-        ratio = max(target_w / img_w, target_h / img_h)
-        nw, nh = int(img_w * ratio), int(img_h * ratio)
-        resized = image.resize((nw, nh), Image.LANCZOS)
-        x, y = (nw - target_w) // 2, (nh - target_h) // 2
-        return resized.crop((x, y, x + target_w, y + target_h))
+    def show_main_menu(self):
+        self.v_menu, self.hud_visible = True, False
+        self.load_scene_image("title_screen.png")
+        for w in self.menu_frame.winfo_children(): w.destroy()
+        tk.Label(self.menu_frame, text="N O R T H", fg="white", bg="#111111", font=("Verdana", 40, "bold")).pack(pady=20)
+        tk.Button(self.menu_frame, text="Spustit hru", command=self.start_game, bg="#333333", fg="white", font=("Verdana", 12), padx=20, pady=10).pack()
+        self.redraw()
 
-    def redraw(self):
-        self.root.update_idletasks()
-        w = self.root.winfo_width()
-        h = self.root.winfo_height()
+    def start_game(self):
+        self.v_menu, self.hud_visible = False, True
+        self.menu_frame.place_forget()
+        self.show_scene("plan")
 
-        if w <= 1 or h <= 1:
-            return
-
-        self.canvas.delete("all")
-        if self.current_pil_image:
-            bg = self.fit_image_cover(self.current_pil_image, w, h)
-            self.current_tk_image = ImageTk.PhotoImage(bg)
-            self.canvas.create_image(0, 0, anchor="nw",
-                                     image=self.current_tk_image)
-
-        if self.v_menu:
-            self.menu_frame.place(relx=0.5, rely=0.5, anchor="center")
-            self.menu_frame.lift()
-        elif self.hud_visible:
-            self.canvas.create_rectangle(
-                0, h - TEXTBOX_HEIGHT, w, h, fill="#000000", stipple="gray50"
-            )
-            self.textbox_frame.place(
-                x=0, y=h - TEXTBOX_HEIGHT, width=w, height=TEXTBOX_HEIGHT
-            )
-            self.textbox_frame.lift()
-            self.story_label.config(wraplength=w - RIGHT_PANEL_WIDTH - 60)
-        else:
-            self.textbox_frame.place_forget()
-
-    def toggle_hud(self):
-        if not self.v_menu:
-            self.hud_visible = not self.hud_visible
-            self.redraw()
-
-
-def main():
-    from scenes import SCENES
-    root = tk.Tk()
-    NorthGame(root, SCENES)
-    root.mainloop()
-
+    def handle_keypress(self, event):
+        k = event.keysym.lower()
+        if k == "h": self.hud_visible = not self.hud_visible; self.redraw()
+        elif k == "escape": self.root.destroy()
 
 if __name__ == "__main__":
-    main()
+    from scenes import SCENES
+    root = tk.Tk()
+    root.title("North: FrostBound Adventure")
+    root.geometry("1280x720")
+    NorthGame(root, SCENES)
+    root.mainloop()

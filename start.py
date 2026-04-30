@@ -3,10 +3,11 @@ import sys
 import tkinter as tk
 from PIL import Image, ImageTk
 
-# Zákaz .pyc souborů
+# Zákaz .pyc souborů (zachováno)
 sys.dont_write_bytecode = True
 IMAGE_FOLDER = "images"
 
+# Globální stav (zachováno a rozšířeno o rozhlizeni)
 VYCHOZI_STAV = {
     "navstiveno": {}, 
     "pouzite_volby": set(), 
@@ -36,6 +37,7 @@ class NorthGame:
         self.show_main_menu()
 
     def setup_ui(self):
+        """GHOST UI: Bez fixních rámů, vše na Canvasu (zachováno)."""
         self.canvas = tk.Canvas(self.root, bg="black", highlightthickness=0, bd=0)
         self.canvas.pack(fill="both", expand=True)
 
@@ -52,14 +54,15 @@ class NorthGame:
         self.root.bind_all("<Key>", self.handle_keypress)
 
     def animate_text(self, text, index):
+        """Bleskový typewriter: 10 ms (zachováno)[cite: 4]."""
         if index <= len(text):
             self.story_label.config(text=text[:index])
-            # RYCHLOST: 10 ms
             self.typing_job = self.root.after(10, lambda: self.animate_text(text, index + 1))
         else:
             self.finish_typing()
 
     def skip_typing(self):
+        """Okamžité dosypání textu (zachováno)[cite: 4]."""
         if self.is_typing:
             if self.typing_job: self.root.after_cancel(self.typing_job)
             self.finish_typing()
@@ -75,7 +78,7 @@ class NorthGame:
 
         self.load_scene_image(scene_data["image"])
         
-        # Zpracování textu
+        # Zpracování dynamických textů a lambd (zachováno)[cite: 4]
         main_txt = custom_text(self.state) if callable(custom_text) else (custom_text or scene_data["text"])
         react_txt = reaction(self.state) if callable(reaction) else reaction
 
@@ -115,7 +118,7 @@ class NorthGame:
                         custom_text=choice_data.get("custom_text"))
 
     def redraw(self):
-        """Responzivní výpočty s dynamickým paddingem."""
+        """Responzivní UI s dynamickým paddingem 4% (zachováno)[cite: 4]."""
         self.root.update_idletasks()
         w, h = self.root.winfo_width(), self.root.winfo_height()
         if w <= 1 or h <= 1: return
@@ -133,14 +136,9 @@ class NorthGame:
         if not self.v_menu and self.hud_visible:
             hud_h = int(h * 0.3)
             right_w = int(w * 0.3)
-            
-            # DYNAMICKÝ PADDING: 4 % šířky/výšky okna
-            px = int(w * 0.04)
-            py = int(h * 0.04)
+            px, py = int(w * 0.04), int(h * 0.04)
             
             self.canvas.create_rectangle(0, h - hud_h, w, h, fill="#0a0a0a", outline="")
-            
-            # Label se umístí s dynamickým paddingem
             self.story_label.place(x=px, y=h - hud_h + py, width=w - right_w - (2 * px), height=hud_h - (2 * py))
             self.story_label.config(wraplength=w - right_w - (2 * px))
             
